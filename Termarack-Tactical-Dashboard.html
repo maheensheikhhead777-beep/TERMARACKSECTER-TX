@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Termarack Tactical Dashboard (Reset)</title>
+</head>
+<body>
+  <main id="dashboard">
+    <section>
+      <h1>T E R M A R A C K S E C T E R</h1>
+      <p>SYSTEM STATUS: GOLD_BUILD_v3.3.0</p>
+      <p>KERNEL: ENCRYPTED (.termaracksecter)</p>
+      <p>LICENSE: AUTHORIZED (FOUNDER)</p>
+      <pre id="terminal"></pre>
+    </section>
+
+    <section>
+      <div id="heartbeatCore" aria-label="ai-heartbeat"></div>
+    </section>
+
+    <section>
+      <p>State: <strong id="stateValue">PATROL</strong></p>
+      <p>Threat Level: <strong id="threatValue">0%</strong></p>
+      <p>Memory: <strong id="memoryValue">CLEAR</strong></p>
+      <button id="interceptBtn">INITIATE INTERCEPTOR SIMULATION</button>
+    </section>
+  </main>
+
+  <script>
+    const terminal = document.getElementById("terminal");
+    const heartbeatCore = document.getElementById("heartbeatCore");
+    const stateValue = document.getElementById("stateValue");
+    const threatValue = document.getElementById("threatValue");
+    const memoryValue = document.getElementById("memoryValue");
+    const dashboard = document.getElementById("dashboard");
+    const interceptBtn = document.getElementById("interceptBtn");
+
+    const npc = { position: { x: 0, y: 0 }, state: "PATROL", team: "INTERCEPTOR", threatLevel: 0 };
+    const player = { position: { x: 100, y: 40 } };
+    const environment = {
+      difficulty: "NORMAL",
+      grid: [[0, 0], [0, 0]],
+      npcGridPos: { r: 0, c: 0 },
+      goalGridPos: { r: 1, c: 1 }
+    };
+
+    let tickCount = 0;
+    let interceptMode = false;
+
+    function pushLine(line) {
+      terminal.textContent += line + "\n";
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function heartbeatPing() {
+      heartbeatCore.dataset.ping = "on";
+      setTimeout(() => { heartbeatCore.dataset.ping = "off"; }, 170);
+    }
+
+    function applyTelemetry(result) {
+      const state = (result && result.state) || "PATROL";
+      const threat = Math.max(0, Math.min(100, Math.floor((result && result.threatLevel) || npc.threatLevel || 0)));
+      const memory = npc.memory && npc.memory.lastKnownPosition ? "LOCKED" : "CLEAR";
+
+      stateValue.textContent = state;
+      threatValue.textContent = `${threat}%`;
+      memoryValue.textContent = memory;
+    }
+
+    function runtimeTick() {
+      tickCount += 1;
+      heartbeatPing();
+
+      let result = null;
+      if (window.NPCGotBrains && typeof window.NPCGotBrains.tick === "function") {
+        result = window.NPCGotBrains.tick(npc, player, environment);
+      } else {
+        // Browser-safe simulation fallback that mirrors production tick behavior.
+        npc.state = interceptMode ? "ENGAGE" : "PATROL";
+        npc.threatLevel = interceptMode ? Math.min(100, npc.threatLevel + 7) : Math.max(0, npc.threatLevel - 2);
+        if (interceptMode) npc.memory = { lastKnownPosition: { x: player.position.x, y: player.position.y } };
+        result = { state: npc.state, threatLevel: npc.threatLevel };
+      }
+
+      applyTelemetry(result);
+      pushLine(`[${new Date().toLocaleTimeString()}] CLOX_STREAM::tick#${tickCount} -> state=${stateValue.textContent}, threat=${threatValue.textContent}`);
+    }
+
+    interceptBtn.addEventListener("click", () => {
+      interceptMode = true;
+      dashboard.dataset.mode = "alert";
+      stateValue.textContent = "ENGAGE";
+      pushLine(`[${new Date().toLocaleTimeString()}] COMMAND::INITIATE INTERCEPTOR SIMULATION`);
+      pushLine(`[${new Date().toLocaleTimeString()}] RESPONSE::STATE: ENGAGE`);
+    });
+
+    pushLine("BOOT:: Tactical Dashboard Online");
+    pushLine("SYSTEM STATUS: GOLD_BUILD_v3.3.0");
+    pushLine("KERNEL: ENCRYPTED (.termaracksecter)");
+    pushLine("LICENSE: AUTHORIZED (FOUNDER)");
+    pushLine("CLOX-BRAIN monitor stream started...");
+
+    setInterval(runtimeTick, 900);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CLOX — NPC GOT BRAIN'S</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:        #050505;
+    --bg2:       #0a0a0a;
+    --bg3:       #0f0f0f;
+    --panel:     #111111;
+    --border:    #1e1e1e;
+    --orange:    #FF6B00;
+    --orange2:   #ff8c00;
+    --orangedim: rgba(255,107,0,0.08);
+    --orangeglow:#ff6b0033;
+    --text:      #e0e0e0;
+    --textdim:   #666;
+    --textmid:   #999;
+    --green:     #00ff88;
+    --red:       #ff3333;
+    --blue:      #00aaff;
+    --yellow:    #ffcc00;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* SCANLINE OVERLAY */
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* GRID BACKGROUND */
+  body::after {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,107,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,107,0,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .logo-block { display:flex; align-items:center; gap:14px; }
+
+  .logo-icon {
+    width: 42px; height: 42px;
+    border: 1.5px solid var(--orange);
+    display: flex; align-items:center; justify-content:center;
+    font-family:'Orbitron',monospace;
+    font-size:13px; font-weight:900;
+    color: var(--orange);
+    box-shadow: 0 0 12px var(--orangeglow), inset 0 0 8px var(--orangeglow);
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 12px var(--orangeglow), inset 0 0 8px var(--orangeglow); }
+    50%      { box-shadow: 0 0 24px rgba(255,107,0,0.5), inset 0 0 16px rgba(255,107,0,0.2); }
+  }
+
+  .logo-text { font-family:'Orbitron',monospace; }
+  .logo-text .clox { font-size:22px; font-weight:900; color:var(--orange); letter-spacing:0.12em; }
+  .logo-text .sub  { font-size:9px; color:var(--textdim); letter-spacing:0.25em; text-transform:uppercase; }
+
+  .header-right { display:flex; align-items:center; gap:20px; }
+
+  .status-dot {
+    display:flex; align-items:center; gap:7px;
+    font-size:11px; color:var(--textmid); font-family:'Share Tech Mono',monospace;
+  }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .phase-tag {
+    font-family:'Orbitron',monospace;
+    font-size:9px; font-weight:700;
+    color:var(--orange);
+    border:1px solid var(--orange);
+    padding:4px 10px;
+    letter-spacing:0.15em;
+    background: var(--orangedim);
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .workspace {
+    position:relative; z-index:10;
+    display:grid;
+    grid-template-columns: 300px 1fr 280px;
+    grid-template-rows: 1fr;
+    height: calc(100vh - 61px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .panel-left {
+    border-right:1px solid var(--border);
+    background: var(--panel);
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  .panel-label {
+    font-family:'Orbitron',monospace;
+    font-size:8px; font-weight:700;
+    letter-spacing:0.2em;
+    color:var(--orange);
+    padding:10px 16px 8px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg2);
+  }
+
+  /* GENRE SELECTOR */
+  .genre-grid {
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:8px; padding:14px;
+    border-bottom:1px solid var(--border);
+  }
+
+  .genre-btn {
+    background: var(--bg3);
+    border:1px solid var(--border);
+    color:var(--textmid);
+    font-family:'Rajdhani',sans-serif;
+    font-size:12px; font-weight:600;
+    padding:10px 8px;
+    cursor:pointer;
+    text-align:center;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    transition: all 0.15s;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .genre-btn::before {
+    content:'';
+    position:absolute; inset:0;
+    background: var(--orangedim);
+    opacity:0; transition:opacity 0.15s;
+  }
+
+  .genre-btn:hover { border-color:var(--orange); color:var(--orange); }
+  .genre-btn:hover::before { opacity:1; }
+
+  .genre-btn.active {
+    border-color:var(--orange);
+    color:var(--orange);
+    background:var(--orangedim);
+    box-shadow:0 0 10px var(--orangeglow);
+  }
+
+  .genre-icon { font-size:18px; display:block; margin-bottom:4px; }
+
+  /* NEURAL MONITORING */
+  .neural-monitor { padding:14px; border-bottom:1px solid var(--border); }
+
+  .monitor-title {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--textdim);
+    letter-spacing:0.15em; margin-bottom:12px;
+    text-transform:uppercase;
+  }
+
+  .monitor-row { margin-bottom:10px; }
+
+  .monitor-label {
+    display:flex; justify-content:space-between;
+    font-size:11px; font-family:'Share Tech Mono',monospace;
+    margin-bottom:5px;
+  }
+
+  .monitor-name { color:var(--textmid); }
+  .monitor-val  { color:var(--orange); font-weight:700; }
+
+  .bar-track {
+    height:4px; background:var(--border);
+    position:relative; overflow:hidden;
+  }
+
+  .bar-fill {
+    height:100%; position:absolute; left:0; top:0;
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .bar-threat   { background: linear-gradient(90deg, var(--orange), var(--red)); }
+  .bar-fatigue  { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
+  .bar-memory   { background: linear-gradient(90deg, var(--blue), var(--green)); }
+
+  /* DIFFICULTY */
+  .diff-section { padding:14px; border-bottom:1px solid var(--border); }
+
+  .diff-row { display:flex; gap:6px; }
+
+  .diff-btn {
+    flex:1; padding:7px 4px;
+    background:var(--bg3); border:1px solid var(--border);
+    color:var(--textdim); font-family:'Orbitron',monospace;
+    font-size:8px; font-weight:700; letter-spacing:0.1em;
+    cursor:pointer; text-align:center; transition:all 0.15s;
+  }
+
+  .diff-btn:hover { border-color:var(--orange); color:var(--orange); }
+  .diff-btn.active { background:var(--orangedim); border-color:var(--orange); color:var(--orange); }
+  .diff-btn.easy.active   { border-color:var(--green); color:var(--green); background:rgba(0,255,136,0.06); }
+  .diff-btn.hard.active   { border-color:var(--red);   color:var(--red);   background:rgba(255,51,51,0.06); }
+
+  /* API KEY */
+  .key-section { padding:14px; }
+
+  .key-label {
+    font-size:9px; font-family:'Share Tech Mono',monospace;
+    color:var(--textdim); letter-spacing:0.15em;
+    text-transform:uppercase; margin-bottom:7px;
+  }
+
+  .key-input {
+    width:100%; background:var(--bg3);
+    border:1px solid var(--border);
+    color:var(--textmid); font-family:'Share Tech Mono',monospace;
+    font-size:11px; padding:8px 10px;
+    outline:none; transition:border 0.15s;
+  }
+
+  .key-input:focus { border-color:var(--orange); color:var(--text); }
+  .key-input::placeholder { color:#333; }
+
+  .key-note {
+    font-size:9px; color:#333; margin-top:5px;
+    font-family:'Share Tech Mono',monospace;
+  }
+
+  /* ── CENTER PANEL ── */
+  .panel-center {
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  .center-top {
+    padding:14px 20px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg2);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  .center-top-label {
+    font-family:'Orbitron',monospace;
+    font-size:8px; color:var(--orange);
+    letter-spacing:0.2em;
+  }
+
+  .state-display {
+    display:flex; gap:8px; align-items:center;
+  }
+
+  .state-chip {
+    font-family:'Orbitron',monospace;
+    font-size:8px; font-weight:700;
+    padding:4px 10px; letter-spacing:0.12em;
+    border:1px solid var(--border);
+    color:var(--textdim);
+    transition:all 0.3s;
+  }
+
+  .state-chip.active-patrol      { border-color:var(--blue);   color:var(--blue);   background:rgba(0,170,255,0.08); box-shadow:0 0 8px rgba(0,170,255,0.3); }
+  .state-chip.active-investigate { border-color:var(--yellow);  color:var(--yellow); background:rgba(255,204,0,0.08);  box-shadow:0 0 8px rgba(255,204,0,0.3); }
+  .state-chip.active-engage      { border-color:var(--red);     color:var(--red);    background:rgba(255,51,51,0.08);  box-shadow:0 0 8px rgba(255,51,51,0.3); }
+  .state-chip.active-rest        { border-color:var(--green);   color:var(--green);  background:rgba(0,255,136,0.08);  box-shadow:0 0 8px rgba(0,255,136,0.3); }
+
+  /* PLOT INPUT AREA */
+  .plot-area {
+    flex:1; padding:20px;
+    display:flex; flex-direction:column;
+    gap:14px; overflow-y:auto;
+  }
+
+  .plot-label {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--textdim);
+    letter-spacing:0.2em; text-transform:uppercase;
+  }
+
+  .plot-textarea {
+    width:100%; flex:1; min-height:140px;
+    background:var(--bg3);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:'Rajdhani',sans-serif;
+    font-size:15px; font-weight:400;
+    padding:14px 16px;
+    outline:none; resize:none;
+    line-height:1.6;
+    transition:border 0.15s;
+  }
+
+  .plot-textarea:focus { border-color: rgba(255,107,0,0.4); }
+  .plot-textarea::placeholder { color:#2a2a2a; }
+
+  /* GENERATE BUTTON */
+  .generate-btn {
+    background: var(--orange);
+    border:none; color:#000;
+    font-family:'Orbitron',monospace;
+    font-size:11px; font-weight:900;
+    letter-spacing:0.2em;
+    padding:14px 28px;
+    cursor:pointer;
+    text-transform:uppercase;
+    transition:all 0.2s;
+    position:relative;
+    overflow:hidden;
+    align-self:flex-end;
+  }
+
+  .generate-btn::before {
+    content:'';
+    position:absolute; top:0; left:-100%;
+    width:100%; height:100%;
+    background: rgba(255,255,255,0.2);
+    transform: skewX(-20deg);
+    transition: left 0.3s;
+  }
+
+  .generate-btn:hover::before { left:100%; }
+  .generate-btn:hover { background:var(--orange2); box-shadow:0 0 20px rgba(255,107,0,0.5); }
+  .generate-btn:active { transform:scale(0.98); }
+  .generate-btn:disabled { background:#333; color:#666; cursor:not-allowed; box-shadow:none; }
+
+  /* OUTPUT AREA */
+  .output-section {
+    border-top:1px solid var(--border);
+    background:var(--bg2);
+    padding:16px 20px;
+    max-height:280px;
+    overflow-y:auto;
+  }
+
+  .output-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+
+  .output-label {
+    font-family:'Orbitron',monospace;
+    font-size:8px; color:var(--orange);
+    letter-spacing:0.2em;
+  }
+
+  .download-btn {
+    background:transparent;
+    border:1px solid var(--orange);
+    color:var(--orange);
+    font-family:'Orbitron',monospace;
+    font-size:8px; font-weight:700;
+    letter-spacing:0.12em;
+    padding:5px 12px;
+    cursor:pointer;
+    transition:all 0.15s;
+    display:none;
+  }
+
+  .download-btn:hover { background:var(--orangedim); box-shadow:0 0 8px var(--orangeglow); }
+  .download-btn.visible { display:block; }
+
+  .output-code {
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; color:var(--textmid);
+    white-space:pre-wrap; word-break:break-all;
+    line-height:1.7;
+    background:var(--bg3);
+    padding:12px 14px;
+    border:1px solid var(--border);
+    min-height:60px;
+  }
+
+  .output-placeholder {
+    color:#222; font-style:normal;
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px;
+  }
+
+  /* ── RIGHT PANEL ── */
+  .panel-right {
+    border-left:1px solid var(--border);
+    background:var(--panel);
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  /* TACTICAL FEED */
+  .feed-area {
+    flex:1; overflow-y:auto;
+    padding:10px 14px;
+  }
+
+  .feed-entry {
+    display:flex; gap:8px;
+    padding:6px 0;
+    border-bottom:1px solid rgba(30,30,30,0.5);
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+
+  .feed-time {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:#333;
+    flex-shrink:0; padding-top:1px;
+  }
+
+  .feed-text {
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; line-height:1.5;
+  }
+
+  .feed-text.info    { color:#555; }
+  .feed-text.ok      { color:var(--green); }
+  .feed-text.warn    { color:var(--yellow); }
+  .feed-text.error   { color:var(--red); }
+  .feed-text.orange  { color:var(--orange); }
+  .feed-text.blue    { color:var(--blue); }
+
+  /* MANIFEST DISPLAY */
+  .manifest-section {
+    border-top:1px solid var(--border);
+    padding:14px;
+    background:var(--bg2);
+  }
+
+  .manifest-label {
+    font-family:'Orbitron',monospace;
+    font-size:8px; color:var(--orange);
+    letter-spacing:0.2em; margin-bottom:10px;
+  }
+
+  .manifest-row {
+    display:flex; justify-content:space-between;
+    padding:4px 0;
+    border-bottom:1px solid #131313;
+    font-size:10px;
+  }
+
+  .manifest-key   { color:#444; font-family:'Share Tech Mono',monospace; }
+  .manifest-value { color:var(--textmid); font-family:'Share Tech Mono',monospace; text-align:right; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .manifest-value.brand { color:var(--orange); font-size:9px; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay {
+    position:fixed; inset:0;
+    background:rgba(5,5,5,0.92);
+    display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:20px;
+    z-index:1000;
+  }
+
+  .loading-overlay.show { display:flex; }
+
+  .loading-ring {
+    width:60px; height:60px;
+    border:2px solid var(--border);
+    border-top:2px solid var(--orange);
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  .loading-text {
+    font-family:'Orbitron',monospace;
+    font-size:11px; color:var(--orange);
+    letter-spacing:0.2em;
+    animation:flicker 1.5s ease-in-out infinite;
+  }
+
+  @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .loading-sub {
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; color:var(--textdim);
+    letter-spacing:0.1em;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:#222; border-radius:2px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--orange); }
+
+  /* CORNER DECORATIONS */
+  .corner { position:absolute; width:12px; height:12px; }
+  .corner.tl { top:0; left:0; border-top:1px solid var(--orange); border-left:1px solid var(--orange); }
+  .corner.tr { top:0; right:0; border-top:1px solid var(--orange); border-right:1px solid var(--orange); }
+  .corner.bl { bottom:0; left:0; border-bottom:1px solid var(--orange); border-left:1px solid var(--orange); }
+  .corner.br { bottom:0; right:0; border-bottom:1px solid var(--orange); border-right:1px solid var(--orange); }
+
+  .panel-label-wrap { position:relative; }
+
+  /* FEATURE TAGS */
+  .feature-tags { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; flex-wrap:wrap; gap:5px; }
+  .ftag {
+    font-family:'Share Tech Mono',monospace;
+    font-size:8px; padding:3px 7px;
+    border:1px solid #1e1e1e; color:#333;
+    transition:all 0.2s;
+  }
+  .ftag.active { border-color:rgba(255,107,0,0.4); color:var(--orange); background:var(--orangedim); }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-ring"></div>
+  <div class="loading-text">CLOX PROCESSING</div>
+  <div class="loading-sub" id="loadingStatus">INITIALIZING NEURAL ENGINE...</div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo-block">
+    <div class="logo-icon">CX</div>
+    <div class="logo-text">
+      <div class="clox">CLOX</div>
+      <div class="sub">Neural Customisation Engine · NPC GOT BRAIN'S</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot">
+      <span class="dot"></span>
+      <span>ENGINE ONLINE</span>
+    </div>
+    <div class="phase-tag">PHASE 2</div>
+  </div>
+</header>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- LEFT PANEL -->
+  <aside class="panel-left">
+    <div class="panel-label">◈ GENRE SELECTOR</div>
+
+    <div class="genre-grid">
+      <button class="genre-btn" data-genre="HORROR" onclick="selectGenre(this)">
+        <span class="genre-icon">👻</span>HORROR
+      </button>
+      <button class="genre-btn" data-genre="STEALTH" onclick="selectGenre(this)">
+        <span class="genre-icon">🕵️</span>STEALTH
+      </button>
+      <button class="genre-btn" data-genre="ACTION" onclick="selectGenre(this)">
+        <span class="genre-icon">💥</span>ACTION
+      </button>
+      <button class="genre-btn" data-genre="SCIFI" onclick="selectGenre(this)">
+        <span class="genre-icon">🤖</span>SCI-FI
+      </button>
+      <button class="genre-btn" data-genre="FANTASY" onclick="selectGenre(this)">
+        <span class="genre-icon">⚔️</span>FANTASY
+      </button>
+      <button class="genre-btn" data-genre="SURVIVAL" onclick="selectGenre(this)">
+        <span class="genre-icon">🌍</span>SURVIVAL
+      </button>
+    </div>
+
+    <!-- NEURAL MONITORING -->
+    <div class="neural-monitor">
+      <div class="monitor-title">▸ NEURAL MONITORING</div>
+
+      <div class="monitor-row">
+        <div class="monitor-label">
+          <span class="monitor-name">THREAT</span>
+          <span class="monitor-val" id="threatVal">0</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill bar-threat" id="threatBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="monitor-row">
+        <div class="monitor-label">
+          <span class="monitor-name">FATIGUE</span>
+          <span class="monitor-val" id="fatigueVal">0</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill bar-fatigue" id="fatigueBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="monitor-row">
+        <div class="monitor-label">
+          <span class="monitor-name">MEMORY</span>
+          <span class="monitor-val" id="memoryVal">0</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill bar-memory" id="memoryBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- DIFFICULTY -->
+    <div class="diff-section">
+      <div class="monitor-title" style="margin-bottom:8px;">▸ DIFFICULTY</div>
+      <div class="diff-row">
+        <button class="diff-btn easy" onclick="setDifficulty('EASY',this)">EASY</button>
+        <button class="diff-btn active" onclick="setDifficulty('NORMAL',this)">NORMAL</button>
+        <button class="diff-btn hard" onclick="setDifficulty('HARD',this)">HARD</button>
+      </div>
+    </div>
+
+    <!-- API KEY -->
+    <div class="key-section">
+      <div class="key-label">▸ YOUR API KEY (BYOK)</div>
+      <input
+        class="key-input"
+        type="password"
+        id="apiKeyInput"
+        placeholder="sk-ant-••••••••••••••••"
+        autocomplete="off"
+      />
+      <div class="key-note">🔒 NEVER STORED · SESSION ONLY</div>
+    </div>
+  </aside>
+
+  <!-- CENTER PANEL -->
+  <main class="panel-center">
+
+    <div class="center-top">
+      <div class="center-top-label">◈ NEURAL INPUT · GAME PLOT PROCESSOR</div>
+      <div class="state-display">
+        <div class="state-chip" id="chip-patrol">PATROL</div>
+        <div class="state-chip" id="chip-investigate">INVESTIGATE</div>
+        <div class="state-chip" id="chip-engage">ENGAGE</div>
+        <div class="state-chip" id="chip-rest">REST</div>
+      </div>
+    </div>
+
+    <div class="plot-area">
+      <div class="plot-label">▸ DESCRIBE YOUR GAME PLOT</div>
+      <textarea
+        class="plot-textarea"
+        id="plotInput"
+        placeholder="Enter your game plot here...&#10;&#10;Example: A post-apocalyptic zombie survival game where the player must escape from a military compound. The NPC guards are infected soldiers — slow but relentless, with high threat detection and long memory..."
+        rows="7"
+      ></textarea>
+
+      <!-- FEATURE TAGS -->
+      <div>
+        <div class="monitor-title" style="margin-bottom:8px;">▸ DETECTED FEATURES</div>
+        <div class="feature-tags" id="featureTags">
+          <span class="ftag" data-feat="UTILITY_AI">UTILITY AI</span>
+          <span class="ftag" data-feat="3GATE_PERCEPTION">3-GATE PERCEPTION</span>
+          <span class="ftag" data-feat="WALL_OCCLUSION">WALL OCCLUSION</span>
+          <span class="ftag" data-feat="GENRE_TRAITS">GENRE TRAITS</span>
+          <span class="ftag" data-feat="HOT_SWAP">HOT-SWAP</span>
+          <span class="ftag" data-feat="ASTAR">A* PATHFINDER</span>
+          <span class="ftag" data-feat="COST_GRID">COST GRID</span>
+          <span class="ftag" data-feat="FACING">FACING TRACK</span>
+          <span class="ftag" data-feat="MEMORY">MEMORY</span>
+          <span class="ftag" data-feat="STATES">3 STATES</span>
+          <span class="ftag" data-feat="SPEED">SPEED SYSTEM</span>
+          <span class="ftag" data-feat="MANIFEST">AUDIT MANIFEST</span>
+          <span class="ftag" data-feat="ZERO_DEP">ZERO DEPS</span>
+        </div>
+      </div>
+
+      <button class="generate-btn" id="generateBtn" onclick="generateBrain()">
+        ⚡ GENERATE NEURAL BRAIN
+      </button>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="output-section">
+      <div class="output-header">
+        <div class="output-label">◈ GENERATED OUTPUT · TREVOR AUDIT READY</div>
+        <button class="download-btn" id="downloadBtn" onclick="downloadFile()">
+          ↓ DOWNLOAD .termaracksecter
+        </button>
+      </div>
+      <div class="output-code" id="outputCode">
+        <span class="output-placeholder">// Awaiting neural generation...
+// Submit your game plot to generate a customized NPC brain.
+// Output will be ready for Trevor (Gemini) audit.</span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel-right">
+    <div class="panel-label">◈ TACTICAL PHASE LOGIC FEED</div>
+
+    <div class="feed-area" id="feedArea">
+      <div class="feed-entry">
+        <span class="feed-time">00:00</span>
+        <span class="feed-text orange">CLOX ENGINE ONLINE</span>
+      </div>
+      <div class="feed-entry">
+        <span class="feed-time">00:00</span>
+        <span class="feed-text info">TermarackBrain v2.1.0 loaded</span>
+      </div>
+      <div class="feed-entry">
+        <span class="feed-time">00:00</span>
+        <span class="feed-text info">Awaiting user plot input...</span>
+      </div>
+    </div>
+
+    <!-- AUDIT MANIFEST -->
+    <div class="manifest-section">
+      <div class="manifest-label">◈ AUDIT MANIFEST</div>
+
+      <div class="manifest-row">
+        <span class="manifest-key">GENRE</span>
+        <span class="manifest-value" id="mGenre">—</span>
+      </div>
+      <div class="manifest-row">
+        <span class="manifest-key">KEYWORDS</span>
+        <span class="manifest-value" id="mKeywords">—</span>
+      </div>
+      <div class="manifest-row">
+        <span class="manifest-key">DIFFICULTY</span>
+        <span class="manifest-value" id="mDifficulty">NORMAL</span>
+      </div>
+      <div class="manifest-row">
+        <span class="manifest-key">FEATURES</span>
+        <span class="manifest-value" id="mFeatures">13</span>
+      </div>
+      <div class="manifest-row">
+        <span class="manifest-key">TIMESTAMP</span>
+        <span class="manifest-value" id="mTimestamp">—</span>
+      </div>
+      <div class="manifest-row">
+        <span class="manifest-key">AUDITOR</span>
+        <span class="manifest-value ok">TREVOR (GEMINI)</span>
+      </div>
+      <div class="manifest-row">
+        <span class="manifest-key">BRANDING</span>
+        <span class="manifest-value brand">.termaracksecter</span>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// ============================================================
+// CLOX ENGINE — Core JavaScript
+// ============================================================
+
+let selectedGenre   = 'ACTION';
+let selectedDiff    = 'NORMAL';
+let generatedCode   = '';
+let simInterval     = null;
+let startTime       = Date.now();
+
+// ── GENRE CONFIGS ──
+const GENRE_CONFIGS = {
+  HORROR: {
+    label: 'HORROR / ZOMBIE',
+    engageRange: 120, detectRange: 350,
+    fov: 100, threatBuild: 8, threatDecay: 1,
+    fatigue: 80, memory: 120,
+    speed: { patrol:1.2, investigate:1.4, engage:1.8 },
+    keywords: ['zombie','horror','dark','fear','slow','relentless','infected'],
+    emoji: '👻'
+  },
+  STEALTH: {
+    label: 'STEALTH / GUARD',
+    engageRange: 90, detectRange: 500,
+    fov: 140, threatBuild: 6, threatDecay: 3,
+    fatigue: 40, memory: 160,
+    speed: { patrol:0.8, investigate:1.0, engage:1.3 },
+    keywords: ['stealth','guard','silent','detection','patrol','infiltrate'],
+    emoji: '🕵️'
+  },
+  ACTION: {
+    label: 'ACTION / SHOOTER',
+    engageRange: 200, detectRange: 400,
+    fov: 120, threatBuild: 5, threatDecay: 2,
+    fatigue: 60, memory: 80,
+    speed: { patrol:1.0, investigate:1.2, engage:1.6 },
+    keywords: ['action','shoot','combat','weapon','enemy','soldier'],
+    emoji: '💥'
+  },
+  SCIFI: {
+    label: 'SCI-FI / CYBER',
+    engageRange: 180, detectRange: 450,
+    fov: 130, threatBuild: 7, threatDecay: 2,
+    fatigue: 50, memory: 100,
+    speed: { patrol:1.1, investigate:1.3, engage:1.7 },
+    keywords: ['robot','cyber','machine','android','laser','tech','drone'],
+    emoji: '🤖'
+  },
+  FANTASY: {
+    label: 'FANTASY / MEDIEVAL',
+    engageRange: 160, detectRange: 380,
+    fov: 110, threatBuild: 4, threatDecay: 2,
+    fatigue: 70, memory: 90,
+    speed: { patrol:0.9, investigate:1.1, engage:1.4 },
+    keywords: ['knight','sword','magic','castle','dragon','medieval','fantasy'],
+    emoji: '⚔️'
+  },
+  SURVIVAL: {
+    label: 'SURVIVAL / POST-APOC',
+    engageRange: 140, detectRange: 360,
+    fov: 115, threatBuild: 6, threatDecay: 1,
+    fatigue: 90, memory: 140,
+    speed: { patrol:1.0, investigate:1.2, engage:1.5 },
+    keywords: ['survive','wasteland','apocalyptic','resource','scavenge','mutant'],
+    emoji: '🌍'
+  }
+};
+
+// ── UTILITY FUNCTIONS ──
+function getTime() {
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+function addFeed(text, type='info') {
+  const feed = document.getElementById('feedArea');
+  const entry = document.createElement('div');
+  entry.className = 'feed-entry';
+  entry.innerHTML = `<span class="feed-time">${getTime()}</span><span class="feed-text ${type}">${text}</span>`;
+  feed.appendChild(entry);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function selectGenre(btn) {
+  document.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedGenre = btn.dataset.genre;
+  const cfg = GENRE_CONFIGS[selectedGenre];
+  addFeed(`Genre selected: ${cfg.label}`, 'orange');
+  addFeed(`Keywords mapped: ${cfg.keywords.slice(0,3).join(', ')}...`, 'info');
+  updateManifestGenre();
+}
+
+function setDifficulty(diff, btn) {
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedDiff = diff;
+  document.getElementById('mDifficulty').textContent = diff;
+  addFeed(`Difficulty set: ${diff}`, diff==='HARD'?'error':diff==='EASY'?'ok':'blue');
+}
+
+function updateManifestGenre() {
+  const cfg = GENRE_CONFIGS[selectedGenre];
+  document.getElementById('mGenre').textContent = cfg.label;
+  document.getElementById('mKeywords').textContent = cfg.keywords.slice(0,3).join(', ');
+}
+
+// ── FEATURE TAG ACTIVATION ──
+function activateAllFeatures() {
+  document.querySelectorAll('.ftag').forEach((t,i) => {
+    setTimeout(() => t.classList.add('active'), i * 80);
+  });
+}
+
+// ── NPC STATE SIMULATION ──
+function startStateSimulation() {
+  const states = ['patrol','investigate','engage','rest'];
+  const weights = { HORROR:[1,2,4,1], STEALTH:[3,3,2,1], ACTION:[1,2,5,0], SCIFI:[2,2,4,1], FANTASY:[2,2,3,1], SURVIVAL:[2,3,3,1] };
+  let tick = 0;
+  if(simInterval) clearInterval(simInterval);
+
+  simInterval = setInterval(() => {
+    const w = weights[selectedGenre] || [1,2,3,1];
+    const pool = [];
+    states.forEach((s,i) => { for(let j=0;j<w[i];j++) pool.push(s); });
+    const state = pool[Math.floor(Math.random()*pool.length)];
+
+    document.querySelectorAll('.state-chip').forEach(c => {
+      c.className = 'state-chip';
+      if(c.id === 'chip-'+state) c.classList.add('active-'+state);
+    });
+
+    // Update neural bars
+    const threat  = Math.min(100, Math.floor(Math.random()*60 + (state==='engage'?40:state==='investigate'?20:0)));
+    const fatigue = Math.min(100, Math.floor(tick * 1.5 % 100));
+    const memory  = state==='investigate'||state==='engage' ? Math.floor(Math.random()*60+40) : Math.floor(Math.random()*30);
+
+    animateBar('threat',  threat);
+    animateBar('fatigue', fatigue);
+    animateBar('memory',  memory);
+
+    tick++;
+  }, 1200);
+}
+
+function animateBar(name, val) {
+  document.getElementById(name+'Bar').style.width = val+'%';
+  document.getElementById(name+'Val').textContent = val;
+}
+
+// ── PLOT KEYWORD DETECTION ──
+function detectKeywordsFromPlot(plot) {
+  const cfg = GENRE_CONFIGS[selectedGenre];
+  const lower = plot.toLowerCase();
+  const found = [];
+  const allWords = ['zombie','horror','stealth','guard','robot','cyber','knight','survive',
+    'dark','fear','soldier','combat','weapon','dragon','magic','wasteland','apocalyptic',
+    'patrol','investigate','engage','threat','memory','npc','enemy','player','game'];
+  allWords.forEach(w => { if(lower.includes(w)) found.push(w); });
+  return [...new Set([...found, ...cfg.keywords.slice(0,2)])].slice(0,6);
+}
+
+// ── GENERATE BRAIN ──
+async function generateBrain() {
+  const plot    = document.getElementById('plotInput').value.trim();
+  const apiKey  = document.getElementById('apiKeyInput').value.trim();
+
+  if(!plot) { addFeed('ERROR: No game plot detected.', 'error'); return; }
+  if(!apiKey) { addFeed('ERROR: API key required (BYOK model).', 'error'); return; }
+
+  const cfg      = GENRE_CONFIGS[selectedGenre];
+  const keywords = detectKeywordsFromPlot(plot);
+  const ts       = new Date().toISOString();
+  const plotSum  = plot.slice(0,200).replace(/\n/g,' ');
+
+  // Show loading
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+
+  const loadSteps = [
+    'PARSING GAME PLOT...',
+    'MAPPING GENRE TRAITS...',
+    'CONFIGURING 13 FEATURES...',
+    'BUILDING NEURAL PROFILE...',
+    'GENERATING BRAIN CODE...',
+    'COMPILING AUDIT MANIFEST...',
+    'PREPARING FOR TREVOR AUDIT...'
+  ];
+
+  let step = 0;
+  const stepInterval = setInterval(() => {
+    if(step < loadSteps.length) {
+      document.getElementById('loadingStatus').textContent = loadSteps[step];
+      addFeed(loadSteps[step], 'info');
+      step++;
+    }
+  }, 400);
+
+  // Build the system prompt for Claude via API
+  const systemPrompt = `You are CLOX, the Neural Customisation Engine for NPC GOT BRAIN'S.
+Generate a complete, customized NPC brain JavaScript file based on the user's game plot.
+The output MUST:
+1. Be valid JavaScript using the TermarackBrain v2.1.0 architecture
+2. Customize all CONFIG values for the detected genre: ${cfg.label}
+3. Include all 13 features in comments
+4. End with a frozen auditManifest object containing:
+   - genre: "${cfg.label}"
+   - keywords: ${JSON.stringify(keywords)}
+   - plotSummary: first 200 chars of plot
+   - timestamp: "${ts}"
+   - difficulty: "${selectedDiff}"
+   - branding: ".termaracksecter"
+   - auditor: "TREVOR (GEMINI)"
+5. The file comment header must say: Generated by CLOX for NPC GOT BRAIN'S
+6. Use these CONFIG values for ${selectedGenre}:
+   - ENGAGE_RANGE: ${cfg.engageRange}
+   - DETECT_RANGE: ${cfg.detectRange}
+   - FOV_ANGLE_DEGREES: ${cfg.fov}
+   - THREAT_BUILD_RATE: ${cfg.threatBuild}
+   - THREAT_DECAY_RATE: ${cfg.threatDecay}
+   - FATIGUE_MAX: ${cfg.fatigue}
+   - MEMORY_DURATION_TICKS: ${cfg.memory}
+   - Difficulty: ${selectedDiff}
+Output ONLY the JavaScript code. No explanation. No markdown. Pure JS.`;
+
+  const userPrompt = `Game Plot: ${plot}\nGenre: ${cfg.label}\nDifficulty: ${selectedDiff}\nGenerate the customized NPC brain code now.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages:[{ role:'user', content: userPrompt }]
+      })
+    });
+
+    clearInterval(stepInterval);
+    overlay.classList.remove('show');
+
+    if(!response.ok) {
+      const err = await response.json();
+      addFeed(`API ERROR: ${err.error?.message || response.status}`, 'error');
+      return;
+    }
+
+    const data = await response.json();
+    generatedCode = data.content?.[0]?.text || '';
+
+    if(!generatedCode) { addFeed('ERROR: Empty response from API.','error'); return; }
+
+    // Display output
+    document.getElementById('outputCode').textContent = generatedCode;
+    document.getElementById('downloadBtn').classList.add('visible');
+
+    // Update manifest
+    document.getElementById('mGenre').textContent     = cfg.label;
+    document.getElementById('mKeywords').textContent  = keywords.join(', ');
+    document.getElementById('mDifficulty').textContent= selectedDiff;
+    document.getElementById('mTimestamp').textContent = new Date().toLocaleTimeString();
+
+    // Activate all feature tags
+    activateAllFeatures();
+
+    // Start simulation
+    startStateSimulation();
+
+    // Feed updates
+    addFeed('━━━━━━━━━━━━━━━━━━', 'info');
+    addFeed('NEURAL BRAIN GENERATED ✓', 'ok');
+    addFeed(`Genre: ${cfg.label}`, 'orange');
+    addFeed(`Keywords: ${keywords.join(', ')}`, 'blue');
+    addFeed(`Difficulty: ${selectedDiff}`, 'blue');
+    addFeed('Audit Manifest: ATTACHED ✓', 'ok');
+    addFeed('Ready for TREVOR audit ✓', 'ok');
+    addFeed('.termaracksecter branding: APPLIED ✓', 'orange');
+    addFeed('━━━━━━━━━━━━━━━━━━', 'info');
+
+  } catch(err) {
+    clearInterval(stepInterval);
+    overlay.classList.remove('show');
+    addFeed(`NETWORK ERROR: ${err.message}`, 'error');
+    addFeed('Check API key and connection.', 'warn');
+  }
+}
+
+// ── DOWNLOAD FILE ──
+function downloadFile() {
+  if(!generatedCode) return;
+  const cfg      = GENRE_CONFIGS[selectedGenre];
+  const gameName = (document.getElementById('plotInput').value.split(' ')[0] || 'Game').replace(/[^a-zA-Z0-9]/g,'');
+  const filename = `${gameName}_NPC_Brain.termaracksecter`;
+  const blob     = new Blob([generatedCode], { type:'text/javascript' });
+  const url      = URL.createObjectURL(blob);
+  const a        = document.createElement('a');
+  a.href         = url;
+  a.download     = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  addFeed(`Downloaded: ${filename}`, 'ok');
+  addFeed('Send to TREVOR for audit.', 'orange');
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  // Set default genre active
+  document.querySelector('[data-genre="ACTION"]').classList.add('active');
+  updateManifestGenre();
+
+  // Plot input live detection
+  document.getElementById('plotInput').addEventListener('input', function() {
+    const plot = this.value.toLowerCase();
+    const genreMap = {
+      HORROR:   ['zombie','horror','dark','fear','infected','ghost'],
+      STEALTH:  ['stealth','guard','silent','detect','infiltrate','sneak'],
+      SCIFI:    ['robot','cyber','android','laser','drone','tech','space'],
+      FANTASY:  ['knight','sword','magic','dragon','medieval','castle'],
+      SURVIVAL: ['survive','apocalyptic','wasteland','mutant','scavenge'],
+      ACTION:   ['shoot','combat','weapon','soldier','war','battle']
+    };
+    let bestGenre = null; let bestCount = 0;
+    for(const [genre, words] of Object.entries(genreMap)) {
+      const count = words.filter(w => plot.includes(w)).length;
+      if(count > bestCount) { bestCount = count; bestGenre = genre; }
+    }
+    if(bestGenre && bestCount > 0) {
+      const btn = document.querySelector(`[data-genre="${bestGenre}"]`);
+      if(btn && !btn.classList.contains('active')) {
+        document.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedGenre = bestGenre;
+        updateManifestGenre();
+      }
+    }
+  });
+
+  addFeed('Genre: ACTION (default)', 'info');
+  addFeed('Difficulty: NORMAL (default)', 'info');
+  addFeed('BYOK: Waiting for API key...', 'warn');
+  addFeed('Ready for plot input.', 'ok');
+});
+</script>
+</body>
+</html>
